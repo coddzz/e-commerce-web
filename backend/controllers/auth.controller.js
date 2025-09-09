@@ -1,5 +1,6 @@
-import User from "../models/user.model.js"
+import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import { redis } from "../lib/redis.js";
 
 const generateTokens = (userId) =>{
     const accessToken = jwt.sign({userId}, process.env.ACCESS_TOKEN_SECRET,{
@@ -12,6 +13,10 @@ const generateTokens = (userId) =>{
 
     return {accessToken, refreshToken }
 
+};
+
+const storeRefreshToken = async (userId, refreshToken) => {
+	await redis.set(`refresh_token:${userId}`, refreshToken, "EX", 7 * 24 * 60 * 60); // 7days
 };
 
 const setCookies = (res, accessToken, refreshToken) =>{
@@ -28,9 +33,6 @@ const setCookies = (res, accessToken, refreshToken) =>{
         sameSite: "strict",
         secure: process.env.NODE_ENV === "production",
     })
-
-
-
 } 
 
 
@@ -42,7 +44,13 @@ export const signup = async (req, res)=>{
             res.status(400).json({message:"User Already"});
         }
 
-        const user = await User.create({ name, email, password })
+        const user = await User.create({ name, email, password });
+
+        // authenticate
+		const { accessToken, refreshToken } = generateTokens(user._id);
+		await storeRefreshToken(user._id, refreshToken);
+		setCookies(res, accessToken, refreshToken);
+
         res.status(201).json({
             _id: user._id,
             name: user.name,
