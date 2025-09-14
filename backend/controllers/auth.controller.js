@@ -1,5 +1,5 @@
 import User from "../models/user.model.js";
-import jwt from "jsonwebtoken";
+import jwt, { decode } from "jsonwebtoken";
 import { redis } from "../lib/redis.js";
 
 const generateTokens = (userId) =>{
@@ -33,7 +33,7 @@ const setCookies = (res, accessToken, refreshToken) =>{
         sameSite: "strict",
         secure: process.env.NODE_ENV === "production",
     })
-} 
+};
 
 
 export const signup = async (req, res)=>{
@@ -62,7 +62,7 @@ export const signup = async (req, res)=>{
         console.log(`Error in Signup Controller`,error.message)
         res.status(500).json({message:error.message})
     }
-}
+};
 
 export const login = async (req,res)=>{
     try{
@@ -91,7 +91,7 @@ export const login = async (req,res)=>{
         console.log(`Error in login controller:${error.message}`);
         res.status(500).json({message:error.message});
     }
-}
+};
 
 export const logout = async (req,res)=>{
     try{
@@ -109,5 +109,44 @@ export const logout = async (req,res)=>{
         console.log(`Error in Logout Controller: ${error.message}`);
         res.status(500).json({message:error.message});
     }
+};
 
-}
+// refresh the access token
+export const refreshToken = async (req, res) =>{
+    try{
+        const refreshToken = req.cookies.refreshToken;
+        if(!refreshToken){
+            return res.status(401).json({message: "No refresh token provided!"})
+        }
+
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const storedToken = await redis.get(`refresh_token:${decoded.userId}`);
+
+        if(storedToken !== refreshToken){
+            return res.status(401).json({message:"Invalid Refresh token"})
+        }
+
+        const accessToken = jwt.sign({userId: decoded.userId},
+            process.env.ACCESS_TOKEN_SECRET,{ expiresIn:"15m" });
+
+        res.cookie("accessToken", accessToken, {
+            maxAge: 15*60*1000, //15minute
+            httponly: true,
+            sameSite: "strict",
+            secure: process.env.NODE_ENV === "production",
+        });
+        res.json({message: "Token refreshed successfully"})
+
+    } catch (error){
+        console.log(`error in refreshToken Controller`,error.message);
+        res.status(500).json({message:"Internal Server Error",error: error.message})
+    }
+};
+
+export const getProfile = async (req, res) =>{
+    try{
+        res.json(req.user);
+    } catch(error){
+        res.status(500).json({message: "Server Error!",error: error.message})
+    }
+};
