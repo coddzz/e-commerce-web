@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import authUser from "./router/auth.route.js"
 import productRoute from "./router/product.route.js"
+import cartRoute from "./router/cart.route.js"
 import { connectDB } from "./lib/db.js";
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authUser);
 app.use("/api/products", productRoute);
+app.use("/api/products", cartRoute);
 
 
 app.listen(PORT, ()=>{
