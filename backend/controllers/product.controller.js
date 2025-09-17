@@ -1,5 +1,6 @@
 import Product from "../models/product.model.js";
 import {redis} from "../lib/redis.js"
+import cloudinary from "../lib/cloudinary.js";
 
 export const getAllProducts = async (req, res) => {
 	try {
@@ -44,7 +45,7 @@ export const createProduct = async (req, res) => {
 
 		let cloudinaryResponse = null;
 		if(image){
-			cloudinaryResponse = await cloudinary.uploder.upload(image, { folder: "products"});
+			cloudinaryResponse = await cloudinary.uploader.upload(image, { folder: "products"});
 		}
 
 		const product = await Product.create({
